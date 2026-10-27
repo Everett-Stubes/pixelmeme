@@ -1,0 +1,11 @@
+# Downloaded speech model (install.sh fetches it)
+models/*
+!models/.gitkeep
+
+# Baked idle clips (tools/prepare_video.py generates them)
+assets/idle/*.npz
+
+.venv/
+__pycache__/
+*.pyc
+config.local.yaml

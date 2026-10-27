@@ -1,0 +1,131 @@
+# pixelmeme configuration.
+# Every key here mirrors a default in pixelmeme/config.py; delete a key to
+# fall back to the default. Command-line flags beat this file.
+
+display:
+  # Internal render size, portrait. This is where the pixels come from: the
+  # whole broadcast is drawn at this size and then blown up with
+  # nearest-neighbour. Smaller = chunkier and faster.
+  #   90x160  exactly 12x on a 1080x1920 panel, 21 characters per subtitle line
+  #   72x128  exactly 15x, much chunkier, 17 characters per line
+  #  108x192  exactly 10x, finer, 26 characters per line
+  base_width: 108
+  base_height: 192
+  fullscreen: true
+  fps: 20
+  # auto    = whole-number scale, letterboxed (crispest; the Pi default)
+  # fill    = use the full screen height, fractional scale, aspect kept
+  # stretch = fill the screen, aspect ignored
+  fit: auto
+  rotate: 0            # 90/180/270 if the panel is physically landscape
+  scanlines: false     # CRT lines on top of the upscale; costs a little
+  dither: 0.55         # 0 disables ordered dithering (cheapest)
+  palette: nyc         # the 3D set: nyc, sitcom, vhs, fried, gameboy, stone
+  # Must stay 0. A flat-shaded face is a single colour, and an ordered dither
+  # on a single colour flips half its pixels to the neighbouring palette
+  # entry -- a checkerboard, most visible on skin.
+  dither_flat: 0.0
+  idle_palette: stone  # the climbing cutaway
+  keepalive_seconds: 60
+
+stage:
+  # Subtitle reveal rate, characters per second.
+  type_speed: 26.0
+
+cutaway:
+  # The climb is a scheduled segment, not a reaction to a quiet room. It
+  # fires after about this many scenes -- a scene being one continuous
+  # stretch on one set -- then runs for duration_minutes and cuts back.
+  #
+  # Keep duration_minutes well under min_live_seconds. A break longer than
+  # the programme is not a break: at 5 minutes against a 2.5-minute sitcom
+  # minimum the wall had 62% of the running time, and because the opener is
+  # only 25 seconds the first real break was twelve times longer than the
+  # one the viewer had been shown, which reads as the show never returning.
+  every_scenes: 5.0
+  duration_minutes: 1.0
+  opening_seconds: 25.0   # the short climb shown at startup
+  # Guard rails, so a run of very short scenes cannot cut away every twenty
+  # seconds and a very long one still eventually breaks. Keep the floor below
+  # what every_scenes takes, or the floor is the only thing that decides and
+  # the cut lands in the middle of a scene instead of at the end of one.
+  min_live_seconds: 150.0
+  max_live_seconds: 1500.0
+
+llm:
+  # Text generation on the device, through llama-cpp-python. This is the
+  # writer. The lexicon generator is still underneath it and covers every
+  # line the model has not delivered yet, so a missing file or a slow board
+  # costs variety, never uptime.
+  #
+  #   pip install llama-cpp-python
+  #   python tools/get_model.py --auto
+  #
+  # --auto picks by the memory actually free: Llama 3.2 1B Q4 (808MB, ~958MB
+  # resident) where there is room, Qwen2.5-0.5B Q4 (398MB) on a 1GB Pi 3.
+  # The app makes the same decision again at startup from model_path below,
+  # and refuses to load anything that does not fit rather than letting the
+  # board swap to its SD card and the frame rate collapse.
+  enabled: true
+  # Tried in order: the first file that is present AND fits the memory
+  # actually free is the one that runs. So the same config works on the
+  # desktop (which has the 1B) and on a Pi 3 (which only has the 0.5B).
+  model_path:
+    - assets/models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
+    - assets/models/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf
+  n_ctx: 768
+  threads: 0            # 0 = one per core, less one left for rendering
+  max_tokens: 170
+  # Measured, not guessed. At 0.9 this model wrote "THEY ARE DOUBTFIRED IN
+  # THEIR OWN SERVICES"; at 1.05 it rambled; 0.75 stayed on the subject and
+  # still produced 20 unique lines out of 20, so a low temperature does not
+  # make it recite the examples the way I expected it to.
+  temperature: 0.75
+  top_p: 0.95
+  repeat_penalty: 1.15
+  # Six, not four: the frame rate is costed by how much of the time the
+  # model is generating at all, so a longer exchange buys the same share
+  # of the lines for a third fewer calls.
+  max_lines_per_call: 6
+  # How often an exchange is the weird one -- somebody saying something far
+  # too large for the room, in the same voice they would use about soup --
+  # instead of an argument about a bagel.
+  existential_chance: 0.18
+  # The share of calls spent on stand-up and on slips -- the two bits the
+  # lexicon used to write. Generously set: most calls are never used.
+  standup_chance: 0.20
+  slip_chance: 0.20
+  # Floor between generations, not a target. At 15 the model wrote only a
+  # quarter of the lines on a desktop where one generation takes five
+  # seconds, so the floor was what the lexicon was covering for, not the
+  # model. On a slower board the model is the limit and this never binds.
+  min_interval_seconds: 6.0
+  # Spare memory needed on top of the model file: context, compute buffers,
+  # the renderer, the OS. A model loads only if free memory covers its own
+  # size plus this, so the check follows whatever model is on disk.
+  # Measured resident (app included): 1B Q4 = 958MB against an 808MB file,
+  # 0.5B Q4 = 526MB against 398MB. 220 is above both on purpose, because
+  # too tight means the SD card thrashes rather than anything erroring.
+  ram_headroom_mb: 220.0
+  # Fixed few-shot examples, so the prompt prefix never changes and llama.cpp
+  # reuses the KV cache. Worth 2s a call on a desktop and much more on a Pi.
+  stable_prompt: true
+
+cloud:
+  # A different thing from `llm` above: that one runs on the device, this is
+  # an API call. Off by default -- the whole thing works with no network. If
+  # both are on this one wins. Needs `pip install anthropic` and
+  # ANTHROPIC_API_KEY in the environment.
+  enabled: false
+  model: claude-opus-5
+  effort: low
+  timeout_seconds: 12.0
+  min_interval_seconds: 20.0
+
+idle:
+  # Bake this with tools/prepare_video.py. If the file is absent, the app
+  # generates an endless pixel-art free solo instead.
+  video: assets/idle/honnold.pxv.npz
+
+debug:
+  overlay: false

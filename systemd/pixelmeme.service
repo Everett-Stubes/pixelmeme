@@ -1,0 +1,44 @@
+# Install with:
+#   sudo cp systemd/pixelmeme.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now pixelmeme
+#
+# Adjust User= and the paths if you did not clone to /home/pi/pixelmeme.
+
+[Unit]
+Description=pixelmeme pixel broadcast
+After=graphical.target
+# Never stop retrying, however many times it has already crashed.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+SupplementaryGroups=video render
+WorkingDirectory=/home/pi/pixelmeme
+
+# For a desktop session (X11). Drop these two lines if you boot to a console
+# and let SDL use KMSDRM instead.
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+
+# The on-device writer needs no configuration here -- it is a file on disk
+# and the app finds it. One knob is worth knowing about: if the board is
+# tight on memory, the model is what to drop, and `--no-llm` does it without
+# editing config.yaml.
+# ExecStart=/home/pi/pixelmeme/run.sh --no-llm
+
+# Uncomment to let Claude write the dialogue over the network instead.
+# Environment=ANTHROPIC_API_KEY=sk-ant-...
+
+ExecStart=/home/pi/pixelmeme/run.sh
+
+# This is the point of the whole thing: it comes back, always.
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

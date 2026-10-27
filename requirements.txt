@@ -1,0 +1,24 @@
+# Core -- everything the app needs to run.
+pygame>=2.1,<3
+numpy>=1.21
+PyYAML>=6.0
+
+# Only needed by tools/prepare_video.py, on the machine where you bake the
+# idle clip. The Pi never imports it.
+# opencv-python>=4.5
+
+# The on-device writer (llm.enabled in config.yaml, on by default). Without
+# it the broadcast runs off the lexicon generator instead -- no error, just
+# less variety. On Windows, or anywhere without a C++ toolchain, take the
+# prebuilt CPU wheel:
+#   pip install llama-cpp-python #     --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+#
+# Installing it is not the same as it working: on this project's own Windows
+# box 0.3.36 installed cleanly and then died inside llama_backend_init with
+# an access violation, while 0.3.2 ran fine with the same model. Check with
+# `python tools/probe_llm.py` -- both installers do, and pin back to 0.3.2
+# if the newest wheel does not run.
+# llama-cpp-python>=0.3
+
+# Only needed if you turn on the cloud script (cloud.enabled in config.yaml).
+# anthropic>=1.0
